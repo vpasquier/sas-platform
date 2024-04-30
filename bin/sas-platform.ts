@@ -4,7 +4,6 @@ import * as cdk from "aws-cdk-lib";
 import { SasPlatformStack } from "../lib/sas-platform-stack";
 
 import "source-map-support/register";
-import { CICDStack } from "../lib/cicd_stack";
 import { loadEnvironmentVariablesFile, configLocalEnvironmentFile as setDotEnvironmentFile } from "../utils/index";
 import { ECSFargateStack } from "../lib/ecs_stack";
 import { EcrStack } from "../lib/ecr_stack";
@@ -40,10 +39,9 @@ const ecr_stack = new EcrStack(app, baseId + "-ecr", {
   django_ecr_name: env.ecrInfo.django_repo_name,
 });
 
-new SasPlatformStack(app, baseId + "-cicd", {
+new SasPlatformStack(app, baseId + "-platform", {
   env: envUser,
   mode: mode,
-  githubInfo: githubInfo,
   fargateService: ecs_stack.fargateService,
   djangoRepository: ecr_stack.djangoRepository,
   djangoContainerName: env.ecrInfo.django_repo_name,
