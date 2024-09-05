@@ -2,6 +2,8 @@
 import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
 import { SasPlatformStack } from "../lib/sas-platform-stack";
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
 
 import "source-map-support/register";
 import { loadEnvironmentVariablesFile, configLocalEnvironmentFile as setDotEnvironmentFile } from "../utils/index";
@@ -21,31 +23,43 @@ const envUser = {
   region: env.region,
 };
 
-const githubInfo = {
-  gitOwner: env.githubInfo.owner,
-  gitRepository: env.githubInfo.repo,
-  branch: env.githubInfo.branch,
-};
+// Create a VPC
+const vpc = new ec2.Vpc(this, "MyVpc", {
+  maxAzs: 2,
+});
 
-const ecs_stack = new ECSFargateStack(app, baseId + "-ecs", {
+// Create an ECS cluster within the VPC
+const cluster = new ecs.Cluster(this, "MyCluster", {
+  vpc,
+});
+
+const ecs_stack_backend = new ECSFargateStack(app, baseId + "-ecs", {
+  vpc,
+  cluster,
   env: envUser,
   mode: mode,
-  serviceARN: env.serviceARN,
+  serviceARN: `arn:aws:ecs:${env.region}:${env.awsAccountId}:service/${env.base_id}-backend`,
+});
+
+const ecs_stack_frontend = new ECSFargateStack(app, baseId + "-ecs", {
+  vpc,
+  cluster,
+  env: envUser,
+  mode: mode,
+  serviceARN: `arn:aws:ecs:${env.region}:${env.awsAccountId}:service/${env.base_id}-front`,
 });
 
 const ecr_stack = new EcrStack(app, baseId + "-ecr", {
   env: envUser,
   mode: mode,
-  django_ecr_name: env.ecrInfo.django_repo_name,
 });
 
 new SasPlatformStack(app, baseId + "-platform", {
   env: envUser,
   mode: mode,
-  fargateService: ecs_stack.fargateService,
-  djangoRepository: ecr_stack.djangoRepository,
-  djangoContainerName: env.ecrInfo.django_repo_name,
-  connectionARN: env.connectionARN,
+  fargateBackEndService: ecs_stack_backend.fargateService,
+  fargateFrontEndService: ecs_stack_backend.fargateService,
+  ecrRepository: ecr_stack.repository,
   awsAccountId: env.awsAccountId,
 });
 

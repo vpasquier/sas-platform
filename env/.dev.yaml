@@ -1,15 +1,1 @@
-region: ap-northeast-1 #feel free to change it
-
-githubInfo:
-  owner: Owner
-  repo: ExampleRepository
-  branch: TARGET_BRANCH
-
-connectionARN: ""
-
-ecrInfo:
-  django_repo_name: "example-django-ecr"
-
-awsAccountId: ""
-
-serviceARN: "arn:aws:ecs:region:aws_account_id:service/cluster-name/service-name"
+awsAccountId: "503561419437"

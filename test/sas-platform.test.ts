@@ -1,8 +1,8 @@
-import * as cdk from "aws-cdk-lib"
-import * as SasPlatform from "../lib/sas-platform-stack"
+import * as cdk from "aws-cdk-lib";
+import * as SasPlatform from "../lib/sas-platform-stack";
 
-import * as ecs from "aws-cdk-lib/aws-ecs"
-import * as ecr from "aws-cdk-lib/aws-ecr"
+import * as ecs from "aws-cdk-lib/aws-ecs";
+import * as ecr from "aws-cdk-lib/aws-ecr";
 
 // Mock Fargate Service
 const mockFargateService: ecs.IBaseService = {
@@ -11,7 +11,7 @@ const mockFargateService: ecs.IBaseService = {
   node: jest.fn() as any, // Mocking node
   stack: jest.fn() as any, // Mocking stack
   env: jest.fn() as any, // Mocking environment
-}
+};
 
 // Mock ECR Repository
 const mockECRRepository: ecr.IRepository = {
@@ -23,7 +23,7 @@ const mockECRRepository: ecr.IRepository = {
   node: jest.fn() as any, // Mocking node
   addToResourcePolicy: jest.fn() as any, // Mocking addToResourcePolicy
   addToPrincipalPolicy: jest.fn() as any, // Mocking addToPrincipalPolicy
-}
+};
 
 test("SaS Platform Stack", () => {
   const app = new cdk.App();
@@ -36,7 +36,7 @@ test("SaS Platform Stack", () => {
       branch: "yourBranch",
     },
     fargateService: mockFargateService, // Provide a mock Fargate service
-    djangoRepository: mockECRRepository, // Provide a mock ECR repository
+    ecrRepository: mockECRRepository, // Provide a mock ECR repository
     djangoContainerName: "yourDjangoContainerName",
     connectionARN: "yourConnectionARN",
     awsAccountId: "yourAWSAccountId",
@@ -92,4 +92,4 @@ test("SaS Platform Stack", () => {
       },
     },
   });
-})
+});

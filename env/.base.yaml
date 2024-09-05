@@ -1,1 +1,6 @@
-base_id: aws-cicd-django
+base_id: sas
+region: us-east-1
+githubInfo:
+  owner: Mesosquare
+  repo: SAS
+  branch: main
