@@ -3,6 +3,7 @@ import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
+import * as servicediscovery from "aws-cdk-lib/aws-servicediscovery";
 
 interface ECSFargateProps extends cdk.StackProps {
   cluster: ecs.Cluster;
@@ -15,6 +16,21 @@ export class ECSFargateStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props: ECSFargateProps) {
     super(scope, id, props);
     const { cluster, serviceARN } = props;
+
+    // Create Service Discovery namespace
+    const namespace = new servicediscovery.PrivateDnsNamespace(this, `${id}-namespace`, {
+      vpc: cluster.vpc,
+      name: `${id}.local`,
+    });
+
+    // Create Service Discovery service
+    const serviceDiscoveryService = new servicediscovery.Service(this, `${id}-service`, {
+      namespace,
+      name: `${id}-service`,
+      dnsRecordType: servicediscovery.DnsRecordType.A,
+      dnsTtl: cdk.Duration.minutes(5),
+    });
+
 
     this.fargateService = ecs.FargateService.fromServiceArnWithCluster(this, id + "-fargateService", serviceARN);
 
