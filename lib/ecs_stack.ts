@@ -1,19 +1,19 @@
-import * as cdk from "aws-cdk-lib";
-import * as ecs from "aws-cdk-lib/aws-ecs";
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as ecr from "aws-cdk-lib/aws-ecr";
-import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
-import * as servicediscovery from "aws-cdk-lib/aws-servicediscovery";
+import { Stack, StackProps, Duration } from 'aws-cdk-lib';
+import { Construct } from 'constructs';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as servicediscovery from 'aws-cdk-lib/aws-servicediscovery';
+import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
 
-interface ECSFargateProps extends cdk.StackProps {
+interface ECSFargateProps extends StackProps {
   cluster: ecs.Cluster;
   serviceARN: string;
 }
 
-export class ECSFargateStack extends cdk.Stack {
+export class ECSFargateStack extends Stack {
   readonly fargateService: ecs.IBaseService;
 
-  constructor(scope: cdk.App, id: string, props: ECSFargateProps) {
+  constructor(scope: Construct, id: string, props: ECSFargateProps) {
     super(scope, id, props);
     const { cluster, serviceARN } = props;
 
@@ -28,14 +28,19 @@ export class ECSFargateStack extends cdk.Stack {
       namespace,
       name: `${id}-service`,
       dnsRecordType: servicediscovery.DnsRecordType.A,
-      dnsTtl: cdk.Duration.minutes(5),
+      dnsTtl: Duration.minutes(5),
     });
 
+    // Referencing the existing Fargate service
+    this.fargateService = ecs.FargateService.fromFargateServiceAttributes(this, id + "-fargateService", {
+      serviceArn: serviceARN,
+      cluster,
+    });
 
-    this.fargateService = ecs.FargateService.fromServiceArnWithCluster(this, id + "-fargateService", serviceARN);
-
+    // Referencing the ECR repository
     const repository = ecr.Repository.fromRepositoryName(this, `${id}Repository`, "sas");
 
+    // Create an Application Load Balanced Fargate Service
     new ecsPatterns.ApplicationLoadBalancedFargateService(this, `${id}FargateService`, {
       cluster,
       taskImageOptions: {
