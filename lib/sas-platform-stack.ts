@@ -3,6 +3,11 @@ import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { ECSFargateStack } from "../lib/ecs_stack";
 import { EcrStack } from "../lib/ecr_stack";
+import { S3Stack } from "./s3_stack";
+import * as rds from "aws-cdk-lib/aws-rds";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import { AuroraStack } from "./aurora_stack";
 
 interface SasPlatformStackProps extends cdk.StackProps {
   env: cdk.Environment;
@@ -16,9 +21,8 @@ export class SasPlatformStack extends cdk.Stack {
     super(scope, id, props);
 
     // ECR
-    const ecr_stack = new EcrStack(scope, props.baseId + "-ecr", {
+    const ecrStack = new EcrStack(scope, props.baseId + "-ecr", {
       env: props.env,
-      mode: props.mode,
     });
 
     // Create a VPC
@@ -31,14 +35,29 @@ export class SasPlatformStack extends cdk.Stack {
       vpc,
     });
 
-    const ecs_stack_backend = new ECSFargateStack(scope, props.baseId + "-backend-ecs", {
+    const ecsStackBackend = new ECSFargateStack(scope, props.baseId + "-backend-ecs", {
       cluster,
-      serviceARN: `arn:aws:ecs:${props.env.region}:${props.env.account}:service/${props.baseId}-backend`,
+      repository: ecrStack.repository,
     });
 
-    const ecs_stack_frontend = new ECSFargateStack(scope, props.baseId + "-frontend-ecs", {
+    const ecsStackFrontEnd = new ECSFargateStack(scope, props.baseId + "-frontend-ecs", {
       cluster,
-      serviceARN: `arn:aws:ecs:${props.env.region}:${props.env.account}:service/${props.baseId}-front`,
+      repository: ecrStack.repository,
+    });
+
+    new AuroraStack(scope, props.baseId + "-aurora", {
+      vpc: vpc,
+    });
+
+    const distribution = new cloudfront.Distribution(this, "CloudFrontDistribution", {
+      defaultBehavior: {
+        origin: new origins.HttpOrigin(ecsStackFrontEnd.loadBalancer.loadBalancerDnsName),
+      },
+    });
+
+    new S3Stack(scope, props.baseId + "-s3-media", {
+      backendTaskRole: ecsStackBackend.taskRole,
+      frontendTaskRole: ecsStackFrontEnd.taskRole,
     });
   }
 }
