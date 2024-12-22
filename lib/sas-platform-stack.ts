@@ -18,6 +18,8 @@ interface SasPlatformStackProps extends cdk.StackProps {
 export class SasPlatformStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props: SasPlatformStackProps) {
     super(scope, id, props);
+    
+    console.log("Starting build of Sas Platform")
 
     const arnService = `arn:aws:ecr:${props.env.region}:${props.env.account}`;
 

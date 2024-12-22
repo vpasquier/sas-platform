@@ -50,7 +50,7 @@ jest.mock("aws-cdk-lib/aws-ecr", () => ({
 }));
 
 describe("SasPlatformStack", () => {
-  test("Check the Sas Platform", () => {
+  test("Sas Platform Tests", () => {
     const app = new App();
     const mockVpc = new ec2.Vpc(app, "MockVpc", {});
     const stack = new SasPlatformStack(app, "MyTestStack", {
