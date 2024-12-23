@@ -1,13 +1,12 @@
 import * as cdk from "aws-cdk-lib";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
-import { ECSFargateStack } from "../lib/ecs_stack";
-import { EcrStack } from "../lib/ecr_stack";
-import { S3Stack } from "./s3_stack";
+import { ECSFargateConstruct } from "../lib/ecs-construct";
+import { EcrConstruct } from "../lib/ecr-construct";
+import { S3Construct } from "./s3-construct";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
-import { AuroraStack } from "./aurora_stack";
-import { IpAddresses } from "aws-cdk-lib/aws-ec2";
+import { AuroraConstruct } from "./aurora-construct";
 
 interface SasPlatformStackProps extends cdk.StackProps {
   env: cdk.Environment;
@@ -22,9 +21,9 @@ export class SasPlatformStack extends cdk.Stack {
 
     console.log("Starting build of Sas Platform");
 
-    const arnService = `arn:aws:ecr:${props.env.region}:${props.env.account}`;
+    // const arnService = `arn:aws:ecr:${props.env.region}:${props.env.account}`;
 
-    const ecrStack = new EcrStack(this, props.baseId + "-ecr", {
+    const ecrConstruct = new EcrConstruct(this, props.baseId + "-ecr", {
       mode: props.mode,
     });
 
@@ -59,11 +58,11 @@ export class SasPlatformStack extends cdk.Stack {
       clusterName: `${props.baseId}-sasCluster`,
     });
 
-    const fargateStack = new ECSFargateStack(this, "FargateSasStack", {
+    const fargateConstruct = new ECSFargateConstruct(this, "FargateSasStack", {
       cluster,
-      repository: ecrStack.repository,
+      repository: ecrConstruct.repository,
       mode: props.mode,
-      vpcId: vpcId,
+      vpc: vpc,
     });
 
     const loadBalancerDnsName = cdk.Fn.importValue(`${props.baseId}-FargateSasStack-LoadBalancerDNS`);
@@ -74,13 +73,13 @@ export class SasPlatformStack extends cdk.Stack {
       },
     });
 
-    new AuroraStack(scope, props.baseId + "-aurora", {
+    new AuroraConstruct(this, props.baseId + "-aurora", {
       vpc: vpc,
       mode: props.mode,
     });
 
-    new S3Stack(scope, props.baseId + "-s3-media", {
-      ecsTaskRole: fargateStack.taskRole,
+    new S3Construct(this, props.baseId + "-s3-media", {
+      ecsTaskRole: fargateConstruct.taskRole,
       mode: props.mode,
     });
   }

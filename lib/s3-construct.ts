@@ -2,15 +2,16 @@ import * as cdk from "aws-cdk-lib";
 import { Tags } from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import { Construct } from "constructs";
 
-interface S3Props extends cdk.StackProps {
+interface S3Props {
   ecsTaskRole: iam.IRole;
   mode: string;
 }
 
-export class S3Stack extends cdk.Stack {
-  constructor(scope: cdk.App, id: string, props: S3Props) {
-    super(scope, id, props);
+export class S3Construct extends Construct {
+  constructor(scope: Construct, id: string, props: S3Props) {
+    super(scope, id);
 
     const { ecsTaskRole: frontendTaskRole } = props;
 

@@ -1,4 +1,4 @@
-import { Stack, StackProps, Duration, Tags } from "aws-cdk-lib";
+import { Duration, Tags } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as servicediscovery from "aws-cdk-lib/aws-servicediscovery";
@@ -8,35 +8,24 @@ import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { IRole, ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 
-interface ECSFargateProps extends StackProps {
+interface ECSFargateProps {
   cluster: ecs.ICluster;
   repository: ecr.IRepository;
-  vpcId: string;
+  vpc: ec2.IVpc;
   mode: string;
 }
 
-export class ECSFargateStack extends Stack {
+export class ECSFargateConstruct extends Construct {
   public readonly loadBalancer: elbv2.ApplicationLoadBalancer;
   public readonly fargateService: ecs.IBaseService;
   public readonly taskRole: IRole;
   public readonly loadBalancerDnsName: string;
 
   constructor(scope: Construct, id: string, props: ECSFargateProps) {
-    super(scope, id, props);
-
-    const vpc =
-      props.mode === "test"
-        ? ec2.Vpc.fromVpcAttributes(this, "MockVpc", {
-            vpcId: "vpc-12345678",
-            availabilityZones: ["us-east-1a", "us-east-1b"],
-            publicSubnetIds: ["subnet-1234", "subnet-5678"],
-          })
-        : ec2.Vpc.fromLookup(scope, "ImportedVpc", {
-            vpcId: props.vpcId,
-          });
+    super(scope, id);
 
     const namespace = new servicediscovery.PrivateDnsNamespace(this, `${id}-namespace`, {
-      vpc: vpc,
+      vpc: props.vpc,
       name: `${id}.local`,
     });
 
@@ -53,7 +42,7 @@ export class ECSFargateStack extends Stack {
     });
 
     this.loadBalancer = new elbv2.ApplicationLoadBalancer(scope, `${id}SasLoadBalancer`, {
-      vpc: vpc,
+      vpc: props.vpc,
       internetFacing: true,
     });
 
