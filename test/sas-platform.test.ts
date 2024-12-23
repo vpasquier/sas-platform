@@ -21,5 +21,7 @@ describe("SasPlatformStack", () => {
     template.resourceCountIs("AWS::ECS::TaskDefinition", 1);
     template.resourceCountIs("AWS::S3::Bucket", 1);
     template.resourceCountIs("AWS::RDS::DBInstance", 1);
+    template.resourceCountIs("AWS::Cognito::UserPool", 1);
+    template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
   });
 });

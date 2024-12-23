@@ -7,6 +7,10 @@ import { S3Construct } from "./s3-construct";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import { AuroraConstruct } from "./aurora-construct";
+import { GithubConstruct } from "./github-construct";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as route53Targets from "aws-cdk-lib/aws-route53-targets";
+import { CognitoApiConstruct } from "./cognito-api-construct";
 
 interface SasPlatformStackProps extends cdk.StackProps {
   env: cdk.Environment;
@@ -81,6 +85,23 @@ export class SasPlatformStack extends cdk.Stack {
     new S3Construct(this, props.baseId + "-s3-media", {
       ecsTaskRole: fargateConstruct.taskRole,
       mode: props.mode,
+    });
+
+    new GithubConstruct(this, props.baseId + "-github");
+
+    const hostedZone = new route53.PublicHostedZone(this, "HostedZone", {
+      zoneName: "werkdrag.com",
+    });
+
+    const cognitoApi = new CognitoApiConstruct(this, "CognitoApiConstruct", {
+      apiName: "WerkDrag",
+      hostedZone: hostedZone
+    });
+
+    new route53.ARecord(this, "AliasRecord", {
+      zone: hostedZone,
+      recordName: "api.werkdrag.com",
+      target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(cognitoApi.api)),
     });
   }
 }

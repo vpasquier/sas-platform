@@ -1,4 +1,3 @@
-import * as cdk from "aws-cdk-lib";
 import { Tags } from "aws-cdk-lib";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
