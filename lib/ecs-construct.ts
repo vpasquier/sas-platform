@@ -9,7 +9,6 @@ import { IRole, ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-ia
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 
 interface ECSFargateProps {
-  cluster: ecs.ICluster;
   repository: ecr.IRepository;
   vpc: ec2.IVpc;
   mode: string;
@@ -23,6 +22,11 @@ export class ECSFargateConstruct extends Construct {
 
   constructor(scope: Construct, id: string, props: ECSFargateProps) {
     super(scope, id);
+
+    const cluster = new ecs.Cluster(this, "sasCluster", {
+      vpc: props.vpc,
+      clusterName: `sas-dev`,
+    });
 
     const namespace = new servicediscovery.PrivateDnsNamespace(this, `${id}-namespace`, {
       vpc: props.vpc,
@@ -48,33 +52,38 @@ export class ECSFargateConstruct extends Construct {
 
     this.loadBalancerDnsName = this.loadBalancer.loadBalancerDnsName;
 
-    const fargateTaskDefinition = new ecs.FargateTaskDefinition(scope, `${id}TaskDefinition`, {
-      family: id,
-      memoryLimitMiB: 512,
-      cpu: 256,
-    });
+    // const fargateBackendTask = new ecs.FargateTaskDefinition(scope, `backend-task`, {
+    //   family: id,
+    //   memoryLimitMiB: 512,
+    //   cpu: 256,
+    // });
+    // const fargateFrontendTask = new ecs.FargateTaskDefinition(scope, `frontend-task`, {
+    //   family: id,
+    //   memoryLimitMiB: 512,
+    //   cpu: 256,
+    // });
 
-    fargateTaskDefinition.addContainer("BackEnd", {
-      image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-backend@latest"),
-      portMappings: [{ containerPort: 8000 }],
-    });
+    // fargateBackendTask.addContainer("BackEnd", {
+    //   image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-backend@latest"),
+    //   portMappings: [{ containerPort: 8000 }],
+    // });
 
-    fargateTaskDefinition.addContainer("FrontEnd", {
-      image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-frontend@latest"),
-      portMappings: [{ containerPort: 3000 }],
-    });
+    // fargateFrontendTask.addContainer("FrontEnd", {
+    //   image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-frontend@latest"),
+    //   portMappings: [{ containerPort: 3000 }],
+    // });
 
-    const appLoadBalancedFargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(
-      this,
-      `${id}FargateService`,
-      {
-        cluster: props.cluster,
-        taskDefinition: fargateTaskDefinition,
-        publicLoadBalancer: true,
-      }
-    );
-    this.loadBalancer = appLoadBalancedFargateService.loadBalancer;
-    this.fargateService = appLoadBalancedFargateService.service;
+    // const appLoadBalancedFargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(
+    //   this,
+    //   `${id}FargateService`,
+    //   {
+    //     cluster: cluster,
+    //     taskDefinition: fargateTaskDefinition,
+    //     publicLoadBalancer: true,
+    //   }
+    // );
+    // this.loadBalancer = appLoadBalancedFargateService.loadBalancer;
+    // this.fargateService = appLoadBalancedFargateService.service;
     Tags.of(scope).add("Environment", props.mode);
   }
 }

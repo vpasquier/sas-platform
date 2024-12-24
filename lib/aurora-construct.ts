@@ -15,8 +15,10 @@ export class AuroraConstruct extends Construct {
     const { vpc } = props;
 
     new rds.DatabaseInstance(this, id, {
-      engine: rds.DatabaseInstanceEngine.POSTGRES,
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE2, ec2.InstanceSize.MICRO),
+      engine: rds.DatabaseInstanceEngine.postgres({
+        version: rds.PostgresEngineVersion.VER_17_2, // Updated to latest version
+      }),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE4_GRAVITON, ec2.InstanceSize.MICRO), // Cheapest Graviton instance
       vpc,
       allocatedStorage: 20,
       deletionProtection: true,

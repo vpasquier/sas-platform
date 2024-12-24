@@ -1,25 +1,57 @@
+import { Duration } from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
+
+const githubDomain = "token.actions.githubusercontent.com";
 
 export class GithubConstruct extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    // Create the IAM role for ECR deployment
-    const ecrDeployRole = new iam.Role(this, "ECRDeployGitHubActionRole", {
-      assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
-      roleName: "ecr-deploy-github-action",
+    const ghProvider = new iam.OpenIdConnectProvider(this, "githubProvider", {
+      url: `https://${githubDomain}`,
+      clientIds: ["sts.amazonaws.com"],
     });
 
-    // Attach policies to the role
-    ecrDeployRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonEC2ContainerRegistryFullAccess"));
-    ecrDeployRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonECS_FullAccess"));
+    const repositoryConfig = [
+      { owner: "vpasquier", repo: "sas-backend-django" },
+      { owner: "vpasquier", repo: "sas-platform" },
+      { owner: "vpasquier", repo: "sas-frontend" },
+    ];
 
-    // Optionally, you can add inline policies for more granular permissions
-    ecrDeployRole.addToPolicy(
+    const iamRepoDeployAccess = repositoryConfig.map((r) => `repo:${r.owner}/${r.repo}:*`);
+
+    const conditions: iam.Conditions = {
+      StringEquals: {
+        [`${githubDomain}:aud`]: "sts.amazonaws.com",
+      },
+      "ForAnyValue:StringLike": {
+        [`${githubDomain}:sub`]: iamRepoDeployAccess,
+      },
+    };
+
+    const deployRole = new iam.Role(scope, "ecrDeployGitHubProviderRole", {
+      assumedBy: new iam.WebIdentityPrincipal(ghProvider.openIdConnectProviderArn, conditions),
+      roleName: "ecr-deploy-github-action",
+      description: "This role is used via GitHub Actions to deploy versioned images to ECR.",
+      maxSessionDuration: Duration.hours(1),
+    });
+
+    deployRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["ecr:PutImage", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload"],
-        resources: [`arn:aws:ecr:us-east-1:503561419437:repository/sas_backend`],
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:PutImage",
+          "ecr:GetAuthorizationToken",
+          "ecr:CompleteLayerUpload",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:BatchDeleteImage",
+        ],
+        resources: ["*"],
       })
     );
   }

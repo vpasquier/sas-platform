@@ -9,8 +9,6 @@ import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import { AuroraConstruct } from "./aurora-construct";
 import { GithubConstruct } from "./github-construct";
 import * as route53 from "aws-cdk-lib/aws-route53";
-import * as route53Targets from "aws-cdk-lib/aws-route53-targets";
-import { CognitoApiConstruct } from "./cognito-api-construct";
 
 interface SasPlatformStackProps extends cdk.StackProps {
   env: cdk.Environment;
@@ -57,13 +55,7 @@ export class SasPlatformStack extends cdk.Stack {
       exportName: vpcId,
     });
 
-    const cluster = new ecs.Cluster(this, "sasCluster", {
-      vpc,
-      clusterName: `${props.baseId}-sasCluster`,
-    });
-
     const fargateConstruct = new ECSFargateConstruct(this, "FargateSasStack", {
-      cluster,
       repository: ecrConstruct.repository,
       mode: props.mode,
       vpc: vpc,
@@ -77,10 +69,10 @@ export class SasPlatformStack extends cdk.Stack {
       },
     });
 
-    new AuroraConstruct(this, props.baseId + "-aurora", {
-      vpc: vpc,
-      mode: props.mode,
-    });
+    // new AuroraConstruct(this, props.baseId + "-aurora", {
+    //   vpc: vpc,
+    //   mode: props.mode,
+    // });
 
     new S3Construct(this, props.baseId + "-s3-media", {
       ecsTaskRole: fargateConstruct.taskRole,
@@ -93,15 +85,15 @@ export class SasPlatformStack extends cdk.Stack {
       zoneName: "werkdrag.com",
     });
 
-    const cognitoApi = new CognitoApiConstruct(this, "CognitoApiConstruct", {
-      apiName: "WerkDrag",
-      hostedZone: hostedZone
-    });
+    // const cognitoApi = new CognitoApiConstruct(this, "CognitoApiConstruct", {
+    //   apiName: "WerkDrag",
+    //   hostedZone: hostedZone
+    // });
 
-    new route53.ARecord(this, "AliasRecord", {
-      zone: hostedZone,
-      recordName: "api.werkdrag.com",
-      target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(cognitoApi.api)),
-    });
+    // new route53.ARecord(this, "AliasRecord", {
+    //   zone: hostedZone,
+    //   recordName: "api.werkdrag.com",
+    //   target: route53.RecordTarget.fromAlias(new route53Targets.ApiGateway(cognitoApi.api)),
+    // });
   }
 }
