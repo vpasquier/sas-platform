@@ -50,6 +50,7 @@ export class GithubConstruct extends Construct {
           "ecr:UploadLayerPart",
           "ecr:BatchCheckLayerAvailability",
           "ecr:BatchDeleteImage",
+          "ecs:UpdateService",
         ],
         resources: ["*"],
       })
