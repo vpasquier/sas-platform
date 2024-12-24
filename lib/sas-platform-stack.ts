@@ -69,7 +69,7 @@ export class SasPlatformStack extends cdk.Stack {
       vpc: vpc,
     });
 
-    const loadBalancerDnsName = cdk.Fn.importValue(`${props.baseId}-FargateSasStack-LoadBalancerDNS`);
+    const loadBalancerDnsName = fargateConstruct.loadBalancerDnsName;
 
     new cloudfront.Distribution(this, "CloudFrontDistribution", {
       defaultBehavior: {
