@@ -7,6 +7,8 @@ import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { IRole, ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 
 interface ECSFargateProps {
   repository: ecr.IRepository;
@@ -52,38 +54,58 @@ export class ECSFargateConstruct extends Construct {
 
     this.loadBalancerDnsName = this.loadBalancer.loadBalancerDnsName;
 
-    // const fargateBackendTask = new ecs.FargateTaskDefinition(scope, `backend-task`, {
-    //   family: id,
-    //   memoryLimitMiB: 512,
-    //   cpu: 256,
-    // });
-    // const fargateFrontendTask = new ecs.FargateTaskDefinition(scope, `frontend-task`, {
-    //   family: id,
-    //   memoryLimitMiB: 512,
-    //   cpu: 256,
-    // });
+    const fargateBackendTask = new ecs.FargateTaskDefinition(scope, `backend-task`, {
+      family: id,
+      memoryLimitMiB: 512,
+      cpu: 256,
+    });
+    const fargateFrontendTask = new ecs.FargateTaskDefinition(scope, `frontend-task`, {
+      family: id,
+      memoryLimitMiB: 512,
+      cpu: 256,
+    });
 
-    // fargateBackendTask.addContainer("BackEnd", {
-    //   image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-backend@latest"),
-    //   portMappings: [{ containerPort: 8000 }],
-    // });
+    fargateBackendTask.addContainer("BackEnd", {
+      image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-backend@latest"),
+      portMappings: [{ containerPort: 8000 }],
+    });
 
-    // fargateFrontendTask.addContainer("FrontEnd", {
-    //   image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-frontend@latest"),
-    //   portMappings: [{ containerPort: 3000 }],
-    // });
+    fargateFrontendTask.addContainer("FrontEnd", {
+      image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-frontend@latest"),
+      portMappings: [{ containerPort: 3000 }],
+    });
 
-    // const appLoadBalancedFargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(
-    //   this,
-    //   `${id}FargateService`,
-    //   {
-    //     cluster: cluster,
-    //     taskDefinition: fargateTaskDefinition,
-    //     publicLoadBalancer: true,
-    //   }
-    // );
-    // this.loadBalancer = appLoadBalancedFargateService.loadBalancer;
-    // this.fargateService = appLoadBalancedFargateService.service;
+    const appLoadBalancedBackendService = new ecsPatterns.ApplicationLoadBalancedFargateService(
+      this,
+      `${id}BackendFargateService`,
+      {
+        cluster: cluster,
+        taskDefinition: fargateBackendTask,
+        publicLoadBalancer: false,
+      }
+    );
+
+    const appLoadBalancedFrontendService = new ecsPatterns.ApplicationLoadBalancedFargateService(
+      this,
+      `${id}FrontendFargateService`,
+      {
+        cluster: cluster,
+        taskDefinition: fargateFrontendTask,
+        publicLoadBalancer: true,
+      }
+    );
+
+    new cloudfront.Distribution(this, `${id}FrontendDistribution`, {
+      defaultBehavior: {
+        origin: new origins.LoadBalancerV2Origin(appLoadBalancedFrontendService.loadBalancer, {
+          protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+        }),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+    });
+
+    this.loadBalancer = appLoadBalancedFrontendService.loadBalancer;
+    this.fargateService = appLoadBalancedFrontendService.service;
     Tags.of(scope).add("Environment", props.mode);
   }
 }

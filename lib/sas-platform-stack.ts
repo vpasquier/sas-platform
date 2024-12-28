@@ -61,13 +61,7 @@ export class SasPlatformStack extends cdk.Stack {
       vpc: vpc,
     });
 
-    const loadBalancerDnsName = fargateConstruct.loadBalancerDnsName;
-
-    new cloudfront.Distribution(this, "CloudFrontDistribution", {
-      defaultBehavior: {
-        origin: new origins.HttpOrigin(loadBalancerDnsName),
-      },
-    });
+    // const loadBalancerDnsName = fargateConstruct.loadBalancerDnsName;
 
     // new AuroraConstruct(this, props.baseId + "-aurora", {
     //   vpc: vpc,
