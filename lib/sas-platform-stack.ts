@@ -15,6 +15,8 @@ interface SasPlatformStackProps extends cdk.StackProps {
   mode: string;
   baseId: string;
   awsAccountId: string;
+  backend_version: string;
+  frontend_version: string;
 }
 
 export class SasPlatformStack extends cdk.Stack {
@@ -29,11 +31,15 @@ export class SasPlatformStack extends cdk.Stack {
       mode: props.mode,
     });
 
+    const repositoryArn = `arn:aws:ecr:${props.env.region}:${props.env.account}:repository/${ecrConstruct.repositoryName}`;
+
+    console.log("ECR Repository ARN:", repositoryArn);
+
     const vpc = new ec2.Vpc(this, "sasVpc", {
       ipAddresses: ec2.IpAddresses.cidr("12.0.0.0/20"),
       enableDnsHostnames: true,
       enableDnsSupport: true,
-      natGateways: 1,
+      natGateways: 0,
       maxAzs: 2,
       subnetConfiguration: [
         {
@@ -55,11 +61,20 @@ export class SasPlatformStack extends cdk.Stack {
       exportName: vpcId,
     });
 
+    const s3Construct = new S3Construct(this, props.baseId + "-s3-media", {
+      mode: props.mode,
+    });
+
     const fargateConstruct = new ECSFargateConstruct(this, "FargateSasStack", {
-      repository: ecrConstruct.repository,
+      repository: repositoryArn,
       mode: props.mode,
       vpc: vpc,
+      backend_version: props.backend_version,
+      frontend_version: props.frontend_version,
+      s3Bucket: s3Construct.s3Bucket,
     });
+
+    s3Construct.s3Bucket.grantRead(fargateConstruct.taskExecutionRole);
 
     // const loadBalancerDnsName = fargateConstruct.loadBalancerDnsName;
 
@@ -67,11 +82,6 @@ export class SasPlatformStack extends cdk.Stack {
     //   vpc: vpc,
     //   mode: props.mode,
     // });
-
-    new S3Construct(this, props.baseId + "-s3-media", {
-      ecsTaskRole: fargateConstruct.taskRole,
-      mode: props.mode,
-    });
 
     new GithubConstruct(this, props.baseId + "-github");
 

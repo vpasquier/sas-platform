@@ -24,6 +24,8 @@ new SasPlatformStack(app, baseId + "-platform", {
   mode: mode,
   baseId: baseId,
   awsAccountId: env.awsAccountId,
+  backend_version: env.backend_version,
+  frontend_version: env.frontend_version,
 });
 
 app.synth();

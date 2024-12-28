@@ -8,14 +8,16 @@ interface EcrProps {
 
 export class EcrConstruct extends Construct {
   public readonly repository: ecr.IRepository;
+  public readonly repositoryName: string;
 
   constructor(scope: Construct, id: string, props: EcrProps) {
     super(scope, id);
 
     const { mode } = props;
 
+    this.repositoryName = `${id}-repository`;
     this.repository = new ecr.Repository(this, "Repository", {
-      repositoryName: `${id}-repository`,
+      repositoryName: this.repositoryName,
     });
 
     Tags.of(this).add("Environment", mode);

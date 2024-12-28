@@ -10,6 +10,8 @@ describe("SasPlatformStack", () => {
       mode: "test",
       baseId: "test-id",
       awsAccountId: "123456789012",
+      backend_version: "latest",
+      frontend_version: "latest",
     });
     let template = Template.fromStack(stack);
     template.resourceCountIs("AWS::EC2::VPC", 1);

@@ -5,21 +5,26 @@ import * as servicediscovery from "aws-cdk-lib/aws-servicediscovery";
 import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
 import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import { IRole, ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { IRole, ManagedPolicy, Role, ServicePrincipal, PolicyDocument, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import * as s3 from "aws-cdk-lib/aws-s3";
 
 interface ECSFargateProps {
-  repository: ecr.IRepository;
+  repository: string;
   vpc: ec2.IVpc;
   mode: string;
+  backend_version: string;
+  frontend_version: string;
+  s3Bucket: s3.Bucket;
 }
 
 export class ECSFargateConstruct extends Construct {
   public readonly loadBalancer: elbv2.ApplicationLoadBalancer;
-  public readonly fargateService: ecs.IBaseService;
+  public readonly frontendService: ecs.IBaseService;
   public readonly taskRole: IRole;
+  public readonly taskExecutionRole: IRole;
   public readonly loadBalancerDnsName: string;
 
   constructor(scope: Construct, id: string, props: ECSFargateProps) {
@@ -35,9 +40,23 @@ export class ECSFargateConstruct extends Construct {
       name: `${id}.local`,
     });
 
-    this.taskRole = new Role(this, "SasTaskExecutionRole", {
+    this.taskRole = new Role(this, "SasTaskRole", {
       assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
-      managedPolicies: [ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess")],
+      managedPolicies: [ManagedPolicy.fromAwsManagedPolicyName("AmazonEC2ContainerRegistryReadOnly")],
+    });
+
+    this.taskExecutionRole = new Role(this, "SasTaskExecutionRole", {
+      assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+      inlinePolicies: {
+        CustomS3Policy: new PolicyDocument({
+          statements: [
+            new PolicyStatement({
+              actions: ["s3:PutObject", "s3:GetObject"],
+              resources: [props.s3Bucket.bucketArn + "/*"],
+            }),
+          ],
+        }),
+      },
     });
 
     new servicediscovery.Service(this, `${id}-service`, {
@@ -58,20 +77,26 @@ export class ECSFargateConstruct extends Construct {
       family: id,
       memoryLimitMiB: 512,
       cpu: 256,
+      taskRole: this.taskRole,
+      executionRole: this.taskExecutionRole,
     });
     const fargateFrontendTask = new ecs.FargateTaskDefinition(scope, `frontend-task`, {
       family: id,
       memoryLimitMiB: 512,
       cpu: 256,
+      taskRole: this.taskRole,
+      executionRole: this.taskExecutionRole,
     });
 
+    const repo = ecr.Repository.fromRepositoryArn(this, "imageBackend", props.repository);
+
     fargateBackendTask.addContainer("BackEnd", {
-      image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-backend@latest"),
+      image: ecs.ContainerImage.fromEcrRepository(repo, `sas-backend-${props.backend_version}`),
       portMappings: [{ containerPort: 8000 }],
     });
 
     fargateFrontendTask.addContainer("FrontEnd", {
-      image: ecs.ContainerImage.fromEcrRepository(props.repository, "sas-frontend@latest"),
+      image: ecs.ContainerImage.fromEcrRepository(repo, `sas-frontend-${props.frontend_version}`),
       portMappings: [{ containerPort: 3000 }],
     });
 
@@ -105,7 +130,7 @@ export class ECSFargateConstruct extends Construct {
     });
 
     this.loadBalancer = appLoadBalancedFrontendService.loadBalancer;
-    this.fargateService = appLoadBalancedFrontendService.service;
+    this.frontendService = appLoadBalancedFrontendService.service;
     Tags.of(scope).add("Environment", props.mode);
   }
 }
