@@ -4,10 +4,15 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as fs from "fs";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 
 interface CognitoApiConstructProps {
   apiName: string;
   hostedZone: route53.PublicHostedZone;
+  openApiSpecPath: string;
+  backendUrl: string;
+  vpc: ec2.Vpc;
 }
 
 export class CognitoApiConstruct extends Construct {
@@ -16,10 +21,13 @@ export class CognitoApiConstruct extends Construct {
   constructor(scope: Construct, id: string, props: CognitoApiConstructProps) {
     super(scope, id);
 
-    const { apiName, hostedZone } = props;
+    const { apiName, hostedZone, openApiSpecPath, backendUrl, vpc } = props;
+
+    // Read OpenAPI specification
+    const apiSpec = fs.readFileSync(openApiSpecPath, "utf-8");
 
     // Create a Cognito User Pool
-    new cognito.UserPool(this, "UserPool", {
+    const userPool = new cognito.UserPool(this, "UserPool", {
       userPoolName: `${apiName}UserPool`,
       selfSignUpEnabled: true,
       signInAliases: { email: true },
@@ -32,10 +40,11 @@ export class CognitoApiConstruct extends Construct {
       code: lambda.Code.fromAsset("lambda"),
     });
 
-    // Create an API Gateway
-    this.api = new apigateway.RestApi(this, "ApiGateway", {
+    // Create an API Gateway using the Swagger/OpenAPI specification
+    this.api = new apigateway.SpecRestApi(this, "ApiGateway", {
       restApiName: `${apiName} API`,
       description: `API for ${apiName}`,
+      apiDefinition: apigateway.ApiDefinition.fromInline(JSON.parse(apiSpec)),
     });
 
     // Create a Lambda authorizer
@@ -44,30 +53,41 @@ export class CognitoApiConstruct extends Construct {
       identitySources: [apigateway.IdentitySource.header("Authorization")],
     });
 
-    // Add a resource and method to the API Gateway with the authorizer
-    const resource = this.api.root.addResource("example");
-    resource.addMethod("GET", new apigateway.MockIntegration(), {
-      authorizer: authorizer,
+    // Create a VPC Link for private integration
+    const vpcLink = new apigateway.VpcLink(this, "VpcLink", {
+      vpc,
+      targets: [], // Leave empty if your Fargate service uses a Network Load Balancer (NLB)
+    });
+
+    // Example of adding a specific method if you need a custom endpoint integration
+    const resource = this.api.root.addResource("werkdrag");
+    resource.addMethod("GET", new apigateway.HttpIntegration(backendUrl, {
+      options: {
+        connectionType: apigateway.ConnectionType.VPC_LINK,
+        vpcLink,
+      },
+    }), {
+      authorizer,
     });
 
     const domainNameLabel = "api.werkdrag.com";
 
-    // Create the certificate once
+    // Create the certificate for custom domain
     const certificate = new acm.Certificate(this, "ApiCertificate", {
       domainName: domainNameLabel,
       validation: acm.CertificateValidation.fromDns(hostedZone),
     });
 
-    // Create the Domain Name
+    // Create the Domain Name in API Gateway
     new apigateway.DomainName(this, "ApiDomainName", {
       domainName: domainNameLabel,
-      certificate: certificate, // Use the existing certificate
+      certificate: certificate,
     });
 
     // Associate the custom domain with the API
     this.api.addDomainName("CustomDomain", {
-      domainName: domainNameLabel, // Use the DomainName label
-      certificate: certificate, // Reuse the existing certificate
+      domainName: domainNameLabel,
+      certificate: certificate,
     });
   }
 }

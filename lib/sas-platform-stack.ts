@@ -36,11 +36,14 @@ export class SasPlatformStack extends cdk.Stack {
     console.log("ECR Repository ARN:", repositoryArn);
 
     const vpc = new ec2.Vpc(this, "sasVpc", {
-      ipAddresses: ec2.IpAddresses.cidr("12.0.0.0/20"),
+      ipAddresses: ec2.IpAddresses.cidr("10.0.0.0/24"),
       enableDnsHostnames: true,
       enableDnsSupport: true,
       natGateways: 0,
+      createInternetGateway: true,
+      availabilityZones: ["us-east-1a", "us-east-1b"],
       maxAzs: 2,
+      vpcName: "sasVpc",
       subnetConfiguration: [
         {
           name: "Public",
@@ -49,7 +52,7 @@ export class SasPlatformStack extends cdk.Stack {
         },
         {
           name: "Private",
-          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
           cidrMask: 24,
         },
       ],
